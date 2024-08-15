@@ -3,17 +3,18 @@
 #include <string.h>
 
 typedef struct _card {
-    int card_id;
-    int winning_numbers[100];
-    int given_numbers[100];
-    int matches;
-    struct _card *next;
+	int card_id;
+	int winning_numbers[100];
+	int given_numbers[100];
+	int matches;
+	int instances;
+	struct _card *next;
 } Card;
 
 static Card *first;
 
 static void print_cards() {
-    Card *current = first;
+	Card *current = first;
 	int *ptr = NULL;
 	while(current != NULL) {
 		printf("Card [%d]:\n", current->card_id);
@@ -26,6 +27,8 @@ static void print_cards() {
 		for(int i = 0; i < 100; i++) {
 			printf("%d ", current->given_numbers[i]);
 		}
+
+		printf("\nInstances %d\n", current->instances);
 		printf("\n");
 
 		current = current->next;
@@ -38,6 +41,7 @@ static void insert_card(int card_id, int* winning_numbers, int* given_numbers)
 	Card *card = malloc(sizeof(Card));
 	card->card_id = card_id;
 	card->matches = 0;
+	card->instances = 1;
 
 	memcpy(card->winning_numbers, winning_numbers, sizeof(card->winning_numbers));
 	memcpy(card->given_numbers, given_numbers, sizeof(card->given_numbers));
@@ -79,7 +83,7 @@ static void initialize_numbers(int* number)
 
 static void set_numbers(int* numbers, char* numbers_as_chars)
 {
-    initialize_numbers(numbers);
+	initialize_numbers(numbers);
 
 	char *saved;
 	int i =0;
@@ -100,23 +104,43 @@ static void extract_card_information(char* line)
 	sscanf(str, "Card%*[ ]%d:%n", &card_id, &start_pos);
 	str += start_pos;
 
-    char *winning_set = strtok(str, "|");
-    char *given_set   = strtok(NULL, "|");
+	char *winning_set = strtok(str, "|");
+	char *given_set   = strtok(NULL, "|");
 
-    set_numbers(winning_numbers, winning_set);
-    set_numbers(given_numbers, given_set);
+	set_numbers(winning_numbers, winning_set);
+	set_numbers(given_numbers, given_set);
 
 
-    insert_card(card_id, winning_numbers, given_numbers);
+	insert_card(card_id, winning_numbers, given_numbers);
+
+}
+
+static void process_instances(Card *card) {
+	if (card->matches == 0) {
+		return;
+	}
+
+	int max_card_id = card->card_id + card->matches;
+
+	Card *current = card->next;
+	while(current != NULL) {
+		if (current->card_id > max_card_id) {
+			break;
+		}
+
+		current->instances += card->instances;
+
+		current = current->next;
+	}
 
 }
 
 static void count_matches()
 {
-    Card *current = first;
-    int *winning_numbers = NULL;
-    int *given_numbers = NULL;
-    int i, j = 0;
+	Card *current = first;
+	int *winning_numbers = NULL;
+	int *given_numbers = NULL;
+	int i, j = 0;
 
 	while(current != NULL) {
 		winning_numbers = current->winning_numbers;
@@ -135,13 +159,15 @@ static void count_matches()
 			i++;
 		}
 
-	current = current->next;
-    }
+		process_instances(current);
+
+		current = current->next;
+	}
 }
 
 static int calculate_total_score()
 {
-    int score = 0;
+	int score = 0;
 	Card *current = first;
 	while(current != NULL) {
 		int score_card = 0;
@@ -161,10 +187,23 @@ static int calculate_total_score()
 	return score;
 }
 
+static int calculate_total_instances()
+{
+	int instaces = 0;
+	Card *current = first;
+	while(current != NULL) {
+		instaces += current->instances;
+
+		current = current->next;
+	}
+
+	return instaces;
+}
+
 int main(void)
 {
-    char *line = NULL;
-    size_t len = 0;
+	char *line = NULL;
+	size_t len = 0;
 
 	while (getline(&line, &len, stdin) != -1) {
 		extract_card_information(line);
@@ -173,8 +212,9 @@ int main(void)
 	count_matches();
 
 	int score = calculate_total_score();
+	int total_of_instances = calculate_total_instances();
 
-	printf("%d\n", score);
+	printf("%d %d\n", score, total_of_instances);
 
 	return 0;
 }
