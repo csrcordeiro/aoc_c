@@ -1,9 +1,12 @@
+// First answers 57075758.
+// Second answers 31161857.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
-# define MAX_SEED 15
+# define MAX_SEED 20
+# define INFINITY 4294967295
 
 typedef struct _map {
 	unsigned int source;
@@ -88,7 +91,6 @@ static void process_map(char** line, size_t* len, FILE* file, Map** map_head)
 			continue;
 		}
 
-
 		Map *new_map = malloc(sizeof(Map));
 
 		sscanf(*line, "%u%*[ ]%u%*[ ]%u", &(new_map->destination), &(new_map->source), &(new_map->length));
@@ -110,20 +112,84 @@ static void print_map(Map* first_map)
 static unsigned int find_item(unsigned int item, Map* map)
 {
 	unsigned int result = item;
+	unsigned int diff, upper_bound = 0;
 
 	Map *current = map;
 	while(current != NULL) {
-		unsigned int upper_bound = current->source + current->length;
+		upper_bound = current->source + current->length;
 		if (item >= current->source &&  item <= upper_bound) {
-			unsigned int diff = item - current->source;
+			diff = item - current->source;
 			result = diff + current->destination;
 			break;
 		}
-
 		current = current->next;
 	}
 
 	return result;
+}
+
+static unsigned int shortest_location(unsigned int seed)
+{
+	unsigned int soil, fertilizer, water, light, temperature, humidity;
+
+	soil = find_item(seed, seed_to_soil);
+	fertilizer = find_item(soil, soil_to_fertilizer);
+	water = find_item(fertilizer, fertilizer_to_water);
+	light = find_item(water, water_to_light);
+	temperature = find_item(light, light_to_temperature);
+	humidity = find_item(temperature, temperature_to_humidity);
+
+	return find_item(humidity, humidity_to_location);
+}
+
+static int in_between(unsigned int number, unsigned int start, unsigned int end)
+{
+	if (number > start && number < end) {
+		return 1;
+	}
+
+	return 0;
+}
+
+/*
+ * This function will discard numbers from the input
+ * that were already searched for in previous ranges.
+ */
+static void discover_range_to_search(
+		unsigned int seed_range_start,
+		unsigned int seed_range_end,
+		unsigned int* new_start,
+		unsigned int* new_end,
+		unsigned int* searched_ranges
+) {
+
+	*new_start = seed_range_start;
+	*new_end = seed_range_end;
+
+	unsigned int searched_start, searched_end;
+	for(int i = 0; i < MAX_SEED; i++) {
+		if (searched_ranges[i] == 0) {
+			searched_ranges[i] = *new_start;
+			searched_ranges[i+1] = *new_end;
+			break;
+		}
+
+		searched_start = searched_ranges[i];
+		searched_end = searched_ranges[i+1];
+
+		if (in_between(seed_range_start, searched_start, searched_end) == 1 && \
+				in_between(seed_range_end, searched_start, searched_end) == 1) {
+			*new_start = 0;
+			*new_end = 0;
+			break;
+		} else if (in_between(seed_range_start, searched_start, searched_end) == 1) {
+			*new_start = searched_end + 1;
+			break;
+		} else if (in_between(seed_range_end, searched_start, searched_end) == 1) {
+			*new_end = seed_range_start - 1;
+			break;
+		}
+	}
 }
 
 int main(void)
@@ -146,30 +212,41 @@ int main(void)
 	process_map(&line, &len, file, &temperature_to_humidity);
 	process_map(&line, &len, file, &humidity_to_location);
 
-	unsigned int location[MAX_SEED];
-	unsigned int soil, fertilizer, water, light, temperature, humidity;
-	int seed_counter = 0;
+	unsigned int location, min_location, seed_range_end, seed_range_start;
+	unsigned int searched_ranges[MAX_SEED];
 
-	for(int i = 0; i < MAX_SEED; i++) {
+	min_location = INFINITY;
+
+	initialize_numbers(searched_ranges, MAX_SEED);
+
+	for(int i = 0; i < MAX_SEED; i+=2) {
 		if (seeds[i] == 0)
 			break;
 
-		soil = find_item(seeds[i], seed_to_soil);
-		fertilizer = find_item(soil, soil_to_fertilizer);
-		water = find_item(fertilizer, fertilizer_to_water);
-		light = find_item(water, water_to_light);
-		temperature = find_item(light, light_to_temperature);
-		humidity = find_item(temperature, temperature_to_humidity);
+		seed_range_start = seeds[i];
+		seed_range_end = seed_range_start + (seeds[i+1] - 1);
 
-		location[i] = find_item(humidity, humidity_to_location);
-		seed_counter++;
-	}
+		unsigned int search_start, search_end;
 
-	unsigned int min_location = location[0];
-	for(int i = 1; i < seed_counter; i++) {
-		if (location[i] < min_location){
-			min_location = location[i];
+		discover_range_to_search(
+				seed_range_start,
+				seed_range_end,
+				&search_start,
+				&search_end,
+				searched_ranges
+		);
+
+		if (search_start == 0 && search_end == 0) {
+			continue;
 		}
+
+		for (int j = 0; (search_start + j) < search_end; j++) {
+			location = shortest_location(search_start + j);
+
+			if (location < min_location || min_location == 0)
+				min_location = location;
+		}
+
 	}
 
 	printf("%u\n", min_location);
