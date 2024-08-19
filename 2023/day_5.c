@@ -5,6 +5,8 @@
 #include <string.h>
 #include <ctype.h>
 
+#include "../utils/utils.h"
+
 # define MAX_SEED 20
 # define INFINITY 4294967295
 
@@ -22,21 +24,6 @@ static Map *water_to_light;
 static Map *light_to_temperature;
 static Map *temperature_to_humidity;
 static Map *humidity_to_location;
-
-static signed int convert_integer(char* string)
-{
-	unsigned int number = 0;
-	char *ptr = string;
-	while(*ptr != '\0' && *ptr != '\n') {
-		if (*ptr == ' ') {
-			ptr++;
-			continue;
-		}
-		number = number * 10 + (*ptr - 48);
-		ptr++;
-	}
-	return number;
-}
 
 static void initialize_numbers(int* numbers, int size)
 {

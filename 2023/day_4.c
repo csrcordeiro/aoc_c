@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../utils/utils.h"
+
 typedef struct _card {
 	int card_id;
 	int winning_numbers[100];
@@ -57,21 +59,6 @@ static void insert_card(int card_id, int* winning_numbers, int* given_numbers)
 		current->next = card;
 	}
 
-}
-
-static int convert_integer(char* string)
-{
-	int number = 0;
-	char *ptr = string;
-	while(*ptr != '\0' && *ptr != '\n') {
-		if (*ptr == ' ') {
-			ptr++;
-			continue;
-		}
-		number = number * 10 + (*ptr - 48);
-		ptr++;
-	}
-	return number;
 }
 
 static void initialize_numbers(int* number)
