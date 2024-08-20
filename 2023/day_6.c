@@ -7,8 +7,8 @@
 #define MAX_RACES 4
 
 typedef struct _race {
-	int time;
-	int distance;
+	long time;
+	long distance;
 	int combinations;
 	struct _race *next;
 } Race;
@@ -33,12 +33,12 @@ static void print_races(void)
 {
 	Race *current = head;
 	while(current != NULL) {
-		printf("Time: %d Distance: %d Combinations: %d\n", current->time, current->distance, current->combinations);
+		printf("Time: %ld Distance: %ld Combinations: %d\n", current->time, current->distance, current->combinations);
 		current = current->next;
 	}
 }
 
-static void extract_numbers(int *dest, char *line, char *prefix)
+static void extract_numbers(long *dest, char *line, char *prefix)
 {
 	int saved;
 
@@ -51,18 +51,19 @@ static void extract_numbers(int *dest, char *line, char *prefix)
 		dest++;
 	}
 }
-static void initialize_numbers(int *numbers, int size)
+
+static void initialize_numbers(long *numbers, int size)
 {
 	for(int i = 0; i < size; numbers[i++] = -1);
 }
 
-static int calculate_combinations(int time, int distance)
+static int calculate_combinations(long time, long distance)
 {
-	int distance_record = distance + 1;
-	int velocity = 0;
+	long distance_record = distance + 1;
+	long velocity = 0;
 	int combinations = 0;
 
-	for(int i = 1; i < time; i++) {
+	for(long i = 1; i < time; i++) {
 		velocity = (time - i) * i;
 		if (velocity >= distance_record)
 			combinations++;
@@ -73,7 +74,7 @@ static int calculate_combinations(int time, int distance)
 
 static void process_races(char *time, char *distance)
 {
-	int races[MAX_RACES], distances[MAX_RACES];
+	long races[MAX_RACES], distances[MAX_RACES];
 
 	initialize_numbers(races, MAX_RACES);
 	extract_numbers(races, time, "Time:%n");
@@ -82,8 +83,8 @@ static void process_races(char *time, char *distance)
 	extract_numbers(distances, distance, "Distance:%n");
 
 	for(int i = 0; i < MAX_RACES; i++) {
-		int int_race = races[i];
-		int int_dist = distances[i];
+		long int_race = races[i];
+		long int_dist = distances[i];
 
 		if (int_race == -1 || int_dist == -1) {
 			break;
@@ -98,9 +99,9 @@ static void process_races(char *time, char *distance)
 	}
 }
 
-static int calculate_total_combinations(void)
+static long calculate_total_combinations(void)
 {
-	int total_combinations = 1;
+	long total_combinations = 1;
 	Race *current = head;
 	while(current != NULL) {
 		total_combinations *= current->combinations;
@@ -129,7 +130,7 @@ int main(int argc, char **argv)
 
 	process_races(time, distance);
 
-	printf("%d\n", calculate_total_combinations());
+	printf("%ld\n", calculate_total_combinations());
 
 	free(line);
 	free(time);
