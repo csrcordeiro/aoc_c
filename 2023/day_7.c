@@ -1,4 +1,3 @@
-// First answer 247815719.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,6 +5,8 @@
 #include "../utils/utils.h"
 
 #define MAX_HANDS 1000
+
+int JOKER_RULE = 1;
 
 enum Type {
 	HIGH,
@@ -40,7 +41,6 @@ static char* type_to_s(enum Type t)
 			return "ONE PAIR";
 	}
 
-
 	return "HIGHER CARD";
 }
 
@@ -59,13 +59,48 @@ static Hand* new_hand(char *line)
 	return hand;
 }
 
-static char find_repeaded_char(Hand *hand, int repeated_amount, char ignore)
+/*
+ * Using ASCII numbers to count frequency.
+ * Got from https://www.geeksforgeeks.org/return-maximum-occurring-character-in-the-input-string/
+ */
+static char find_most_frequent_card(char *str)
 {
-	char *card = hand->cards;
-	if (*card == '\0')
-		return ' ';
+    int count[256] = { 0 };
+
+    for (int i = 0; i < 5; i++)
+        count[(int)str[i]]++;
+
+    char max_char = 'J';
+    int max_count = 0;
+    for (int i = 0; i < 5; i++) {
+		if (str[i] == 'J')
+			continue;
+
+		char current_char = count[(int)str[i]];
+        if (current_char > max_count) {
+            max_count = current_char;
+            max_char = str[i];
+        }
+    }
+
+    return max_char;
+}
+
+static char find_repeated_char(Hand *hand, int target_amount, char ignore)
+{
+	char *card = malloc(strlen(hand->cards) + 1);
+	strcpy(card, hand->cards);
+
+	if (JOKER_RULE == 1) {
+		char most_frequent_card = find_most_frequent_card(card);
+		for(int i = 0; i < 5; i++) {
+			if (card[i] == 'J')
+				card[i] = most_frequent_card;
+		}
+	}
 
 	int find_counter = 0;
+	char result;
 	for(int i = 0; i < 5; i++) {
 		find_counter = 1;
 
@@ -78,11 +113,17 @@ static char find_repeaded_char(Hand *hand, int repeated_amount, char ignore)
 				find_counter++;
 			}
 
-			if (find_counter == repeated_amount) {
-				return card[i];
+			if (find_counter == target_amount) {
+
+				result = card[i];
+				free(card);
+
+				return result;
 			}
 		}
 	}
+
+	free(card);
 
 	return ' ';
 }
@@ -90,53 +131,43 @@ static char find_repeaded_char(Hand *hand, int repeated_amount, char ignore)
 
 static int is_one(Hand *hand)
 {
-	return find_repeaded_char(hand, 2, ' ') != ' ';
+	return find_repeated_char(hand, 2, ' ') != ' ';
 }
 
 static int is_two(Hand *hand)
 {
-	char found_three_chars = find_repeaded_char(hand, 2, ' ');
-	if (found_three_chars == ' ') {
+	char found_char = find_repeated_char(hand, 2, ' ');
+	if (found_char == ' ') {
 		return 0;
 	}
 
-	return find_repeaded_char(hand, 2, found_three_chars) != ' ';
+	return find_repeated_char(hand, 2, found_char) != ' ';
 }
 
 
 static int is_full(Hand *hand)
 {
-	char found_three_chars = find_repeaded_char(hand, 3, ' ');
-	if (found_three_chars == ' ') {
+	char found_char = find_repeated_char(hand, 3, ' ');
+	if (found_char == ' ') {
 		return 0;
 	}
 
-	return find_repeaded_char(hand, 2, found_three_chars) != ' ';
+	return find_repeated_char(hand, 2, found_char) != ' ';
 }
 
 static int is_three(Hand *hand)
 {
-	return find_repeaded_char(hand, 3, ' ') != ' ';
+	return find_repeated_char(hand, 3, ' ') != ' ';
 }
 
 static int is_four(Hand *hand)
 {
-	return find_repeaded_char(hand, 4, ' ') != ' ';
+	return find_repeated_char(hand, 4, ' ') != ' ';
 }
 
 static int is_five(Hand *hand)
 {
-	char *card = hand->cards;
-	if (*card == '\0')
-		return 0;
-
-	for(int i = 1; i < 5; i++) {
-		if (card[i - 1] != card[i]) {
-			return 0;
-		}
-	}
-
-	return 1;
+	return find_repeated_char(hand, 5, ' ') != ' ';
 }
 
 static void insert_hand(Hand *hands, Hand *hand)
@@ -154,6 +185,9 @@ static void insert_hand(Hand *hands, Hand *hand)
 
 static int card_value(char card)
 {
+	if (JOKER_RULE == 1 && card == 'J')
+		return 1;
+
 	switch(card) {
 		case 'A':
 			return 14;
@@ -240,7 +274,7 @@ int main(int argc, char **argv)
 		hands[i].bid = 0;
 	}
 
-	Hand *hand;
+	Hand *hand = NULL;
 	while(getline(&line, &len, stdin) != -1) {
 		hand = new_hand(line);
 
@@ -260,9 +294,13 @@ int main(int argc, char **argv)
 	int total_winning = 0;
 	for(int i = 0; i < input_number; i++) {
 		total_winning += (hands[i].bid * (i+1));
+		/* printf("Card: %s Bid: %d Type: %s\n", hands[i].cards, hands[i].bid, type_to_s(hands[i].type)); */
 	}
 
 	printf("%d\n", total_winning);
 
 	return 0;
 }
+
+// First answer 247815719.
+// Second answer 248747492.
