@@ -8,6 +8,7 @@
 
 typedef struct _path {
 	char *original_line;
+	char *letters;
 	int id;
 	int left;
 	int right;
@@ -39,6 +40,9 @@ static void process_path(char *line, Path *paths, int index)
 
 	sscanf(line, "%3s = (%3s, %3s)", id, left, right);
 
+	current->letters = malloc(strlen(id)+1);
+	strcpy(current->letters, id);
+
 	current->id = convert_path_to_integer(id);
 	current->left = convert_path_to_integer(left);
 	current->right = convert_path_to_integer(right);
@@ -63,6 +67,82 @@ static int compare_paths(const void *p1, const void *p2)
 	Path *path_2 = (Path*) p2;
 
 	return (path_1->id - path_2->id);
+}
+
+static int find_part_1(Path *paths, char *directions, int total_direction_size, int total_input)
+{
+	Path *current_position = paths;
+	int hops = 0;
+	int direction_index = 0;
+	do {
+		if (direction_index >= total_direction_size - 1)
+			direction_index = 0;
+
+		char direction = directions[direction_index];
+
+		if (direction == 'L') {
+			current_position = find_path(paths, current_position->left, total_input);
+		} else {
+			current_position = find_path(paths, current_position->right, total_input);
+		}
+
+		direction_index++;
+		hops++;
+	} while(current_position->id != ZZZ);
+
+	return hops;
+}
+
+static void *find_all_ending_in_char(Path *paths, Path* *starts, int total_input, char letter)
+{
+	for(int i = 0, j = 0; i < total_input; i++) {
+		Path *current = &paths[i];
+		if ((current->letters)[2] == letter) {
+			starts[j] = current;
+			j++;
+		}
+	}
+}
+
+static long count_needed_hops(Path *start, Path *paths, char *directions, int total_direction_size, int total_input)
+{
+	Path *current_position = start;
+	long hops = 0;
+	int direction_index = 0;
+	do {
+		if (direction_index >= total_direction_size - 1)
+			direction_index = 0;
+
+		char direction = directions[direction_index];
+
+		if (direction == 'L') {
+			current_position = find_path(paths, current_position->left, total_input);
+		} else {
+			current_position = find_path(paths, current_position->right, total_input);
+		}
+
+		direction_index++;
+		hops++;
+	} while(current_position->letters[2] != 'Z');
+
+	return hops;
+}
+
+static long find_gcd(long a, long b)
+{
+	if (b==0)
+		return a;
+
+	return find_gcd(b, a%b);
+}
+
+static long find_lcm(long a, long b)
+{
+	if (a > b) {
+		return (a/find_gcd(a, b))*b;
+	} else {
+		return (b/find_gcd(a, b))*a;
+	}
 }
 
 int main(int argc, char **argv)
@@ -91,26 +171,31 @@ int main(int argc, char **argv)
 
 	qsort(paths, total_input, sizeof(Path), compare_paths);
 
-	Path *current_position = paths;
-	int hops = 0;
-	int direction_index = 0;
-	do {
-		if (direction_index >= total_direction_size - 1)
-			direction_index = 0;
+	int hops = find_part_1(paths, directions, total_direction_size, total_input);
+	printf("Part 1: %d\n", hops);
 
-		char direction = directions[direction_index];
+	Path *all_start_in_a[total_input];
+	for(int i = 0; i < total_input; i++) {
+		all_start_in_a[i] = NULL;
+	}
 
-		if (direction == 'L') {
-			current_position = find_path(paths, current_position->left, total_input);
-		} else {
-			current_position = find_path(paths, current_position->right, total_input);
-		}
+	find_all_ending_in_char(paths, all_start_in_a, total_input, 'A');
 
-		direction_index++;
-		hops++;
-	} while(current_position->id != ZZZ);
+	long needed_hops[total_input];
+	for(int i = 0; i < total_input; i++) {
+		needed_hops[i] = -1;
+	}
 
-	printf("%d\n", hops);
+	for(int i = 0; all_start_in_a[i] != NULL; i++) {
+		needed_hops[i] = count_needed_hops(all_start_in_a[i], paths, directions, total_direction_size, total_input);
+	}
+
+	long result = 1;
+	for(int i = 0; needed_hops[i] != -1; i++) {
+		result = find_lcm(result, needed_hops[i]);
+	}
+
+	printf("Part 2: %ld\n", result);
 
 	free(line);
 	return 0;
