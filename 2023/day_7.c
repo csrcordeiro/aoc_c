@@ -200,7 +200,7 @@ static int card_value(char card)
 		case 'T':
 			return 10;
 		default:
-			return convert_integer(&card);
+			return ((int) card) - 48;
 	}
 }
 
