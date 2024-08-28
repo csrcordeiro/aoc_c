@@ -9,7 +9,8 @@
 typedef struct _entry {
 	long *numbers;
 	int  total_numbers;
-	long prediction;
+	long last_prediction;
+	long first_prediction;
 } Entry;
 
 static void read_entry(char *line, Entry *entry)
@@ -34,11 +35,13 @@ static void make_prediction(Entry *entry)
 {
 	long layers[entry->total_numbers];
 	long last_prediction_processed[entry->total_numbers];
+	long first_prediction_processed[entry->total_numbers];
+
 	int prediction_index = 0;
 	int all_zeros_prediction = 1;
 	int total_numbers = entry->total_numbers;
 
-	last_prediction_processed[0] = entry->numbers[total_numbers - 1];
+	first_prediction_processed[0] = entry->numbers[0];
 
 	for(int i = 0; i < total_numbers; i++) {
 		layers[i] = entry->numbers[i];
@@ -59,13 +62,21 @@ static void make_prediction(Entry *entry)
 		}
 
 		last_prediction_processed[prediction_index] = layers[total_numbers];
+
 		prediction_index++;
+
+		first_prediction_processed[prediction_index] = layers[0];
 
 	} while (all_zeros_prediction != 1);
 
-	entry->prediction = 0;
+	entry->first_prediction = 0;
+	for(int i = prediction_index - 1; i >= 0; i--) {
+		entry->first_prediction = first_prediction_processed[i] - entry->first_prediction;
+	}
+
+	entry->last_prediction = 0;
 	for(int i = 0; i < prediction_index; i++) {
-		entry->prediction += last_prediction_processed[i];
+		entry->last_prediction += last_prediction_processed[i];
 	}
 }
 
@@ -91,18 +102,19 @@ int main(int argc, char **argv)
 		entry_index++;
 	}
 
-	long sum_of_predictions = 0;
+	long sum_of_predictions_last_predictions = 0;
+	long sum_of_predictions_first_predictions = 0;
 	for(int i = 0; i < MAX_ENTRIES; i++) {
 		if (entries[i] == NULL)
 			break;
 
 		make_prediction(entries[i]);
 
-		sum_of_predictions += entries[i]->prediction;
+		sum_of_predictions_last_predictions += entries[i]->last_prediction;
+		sum_of_predictions_first_predictions += entries[i]->first_prediction;
 	}
 
-
-	printf("%ld\n", sum_of_predictions);
+	printf("%ld %ld\n", sum_of_predictions_last_predictions, sum_of_predictions_first_predictions);
 
 	free(line);
 	for(int i = 0; i < MAX_ENTRIES; i++) {
@@ -113,3 +125,4 @@ int main(int argc, char **argv)
 }
 
 // Part 1: 1974913025.
+// Part 2: 884.
