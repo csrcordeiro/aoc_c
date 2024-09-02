@@ -1,3 +1,18 @@
+/*
+ * For part 2, this solution uses two algorithms to calculate the Area and
+ * find out the number of inner points in the Area.
+ *
+ * To calculate Area.
+ * https://en.wikipedia.org/wiki/Shoelace_formula
+ *
+ * Adapted to calculate the inner points in area.
+ * https://en.wikipedia.org/wiki/Pick%27s_theorem
+ *
+ * Got the idea from this redditor:
+ * https://www.reddit.com/r/adventofcode/comments/18evyu9/comment/kcqmhwk/
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,6 +24,11 @@ typedef struct _point {
 	int x;
 	int y;
 } Point;
+
+typedef struct _result {
+	int steps;
+	int tiles;
+} Result;
 
 static void print_grid(char grid[MAX_GRID][MAX_GRID])
 {
@@ -136,12 +156,7 @@ static int is_same_point(Point *a, Point *b)
 	return a->x == b->x && a->y == b->y;
 }
 
-static int roundn(int n1, int n2)
-{
-	return n1/n2 + (n1 % n2 != 0);
-}
-
-static int start_walking(char grid[MAX_GRID][MAX_GRID], Point *start, Point *next)
+static void start_walking_and_counting_results(char grid[MAX_GRID][MAX_GRID], Point *start, Point *next, Result *result)
 {
 	Point *previous = malloc(sizeof(Point));
 	previous->x = start->x;
@@ -151,17 +166,23 @@ static int start_walking(char grid[MAX_GRID][MAX_GRID], Point *start, Point *nex
 	current->x = next->x;
 	current->y = next->y;
 
+	Point visited_points[MAX_GRID * MAX_GRID];
+
 	int steps = 0;
+	int two_times_the_area_of_polygon = 0;
 	do {
+		two_times_the_area_of_polygon += (previous->y + current->y) * (previous->x - current->x);
+
 		walk(grid, current, previous);
 
 		steps++;
 	} while(is_same_point(start, current) == 0);
 
+	result->steps = (steps + 1) / 2;
+	result->tiles = (abs(two_times_the_area_of_polygon / 2)) - result->steps + 1;
+
 	free(previous);
 	free(current);
-
-	return roundn(steps, 2);
 }
 
 static int can_go(char grid[MAX_GRID][MAX_GRID], Point *start, char point)
@@ -196,8 +217,7 @@ static int can_go(char grid[MAX_GRID][MAX_GRID], Point *start, char point)
 }
 
 
-static int move(char grid[MAX_GRID][MAX_GRID], Point *start, char point) {
-	int result = 0;
+static void move(char grid[MAX_GRID][MAX_GRID], Point *start, char point, Result *result) {
 
 	Point *next = malloc(sizeof(Point));
 	next->x = start->x;
@@ -219,19 +239,20 @@ static int move(char grid[MAX_GRID][MAX_GRID], Point *start, char point) {
 
 	}
 
-	result = start_walking(grid, start, next);
+	start_walking_and_counting_results(grid, start, next, result);
 
 	free(next);
-
-	return result;
 }
 
-static int get_max(int *numbers)
+static Result *get_max(Result *results)
 {
-	int greatest = 0;
+	Result *greatest = (&results[0]);
+	Result *current = greatest;
+
 	for(int i = 0; i < 4; i++) {
-		if (numbers[i] > greatest)
-			greatest = numbers[i];
+		current = &results[i];
+		if (current->steps > greatest->steps)
+			greatest = current;
 	}
 
 	return greatest;
@@ -254,25 +275,27 @@ int main(int argc, char **argv)
 		current_y++;
 	}
 
-	int paths[4] = { 0 };
+	Result paths[4];
 
 	if (can_go(grid, start, 'E') == 1) {
-		paths[0] = move(grid, start, 'E');
+		move(grid, start, 'E', &paths[0]);
 	}
 
 	if (can_go(grid, start, 'W') == 1) {
-		paths[1] = move(grid, start, 'W');
+		move(grid, start, 'W', &paths[1]);
 	}
 
 	if (can_go(grid, start, 'N') == 1) {
-		paths[2] = move(grid, start, 'N');
+		move(grid, start, 'N', &paths[2]);
 	}
 
 	if (can_go(grid, start, 'S') == 1) {
-		paths[3] = move(grid, start, 'S');
+		move(grid, start, 'S', &paths[3]);
 	}
 
-	printf("%d \n", get_max(paths));
+	Result *result = get_max(paths);
+
+	printf("%d %d\n", result->steps, result->tiles);
 
 	free(line);
 	free(start);
