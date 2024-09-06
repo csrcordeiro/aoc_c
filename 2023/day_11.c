@@ -2,16 +2,23 @@
 #include <stdlib.h>
 
 #define MAX_GRID 140
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
+
+#define ll long long
+
+/* #define INCREASE_BY (1) */
+#define INCREASE_BY (999999)
+
 
 typedef struct _point {
 	int id;
 	int x;
 	int y;
-	int distance_between_pairs;
 	struct _point *next;
 } Point;
 
-static void print_grid(char **grid, int y, int x)
+static void print_grid(char grid[MAX_GRID][MAX_GRID], int y, int x)
 {
 	for(int i = 0; i < y; i++) {
 		for(int j = 0; j < x; j++) {
@@ -28,7 +35,7 @@ static void plot_grid(char grid[MAX_GRID][MAX_GRID], char *line, int current_siz
 	}
 }
 
-static void find_expanded_dimentions(char grid[MAX_GRID][MAX_GRID], int universe_size, int *col_empty, int *row_empty)
+static void find_expanded_dimentions(char grid[MAX_GRID][MAX_GRID], int *col_empty, int *row_empty,int universe_size)
 {
 	for(int i = 0; i < universe_size; i++) {
 		col_empty[i] = 1;
@@ -38,72 +45,11 @@ static void find_expanded_dimentions(char grid[MAX_GRID][MAX_GRID], int universe
 	for(int i = 0; i < universe_size; i++) {
 		for(int j = 0; j < universe_size; j++) {
 			if (grid[i][j] == '#') {
-				col_empty[j] = 0;
-				row_empty[i] = 0;
+				col_empty[i] = 0;
+				row_empty[j] = 0;
 			}
 		}
 	}
-}
-
-static char** expand_grid(
-		char grid[MAX_GRID][MAX_GRID],
-		int universe_size,
-		int *col_empty_galaxies,
-		int *row_empty_galaxies,
-		int dimention_x,
-		int dimention_y
-)
-{
-	char **new_grid = (char**) malloc(dimention_y * sizeof(char*));
-	for(int i = 0; i < dimention_x; i++) {
-		new_grid[i] = (char*) malloc(dimention_x * sizeof(char));
-	}
-
-
-	int new_grid_x = 0;
-	int new_grid_y = 0;
-	for(int i = 0; i < universe_size; i++) {
-		new_grid_x = 0;
-
-		if (row_empty_galaxies[i] == 1) {
-			for(int k = 0; k < dimention_x; k++) {
-				new_grid[new_grid_y][k] = '.';
-				new_grid[new_grid_y + 1][k] = '.';
-			}
-			new_grid_y += 2;
-
-			continue;
-		}
-
-		for(int j = 0; j < universe_size; j++) {
-			if (col_empty_galaxies[j] == 1) {
-				new_grid[new_grid_y][new_grid_x] = '.';
-
-				new_grid_x++;
-
-				new_grid[new_grid_y][new_grid_x] = '.';
-			} else {
-				new_grid[new_grid_y][new_grid_x] = grid[i][j];
-			}
-
-			new_grid_x++;
-		}
-
-		new_grid_y++;
-	}
-
-	return new_grid;
-}
-
-static int count_new_dimention(int *empty_dimentions, int universe_size)
-{
-	int new_dimention = universe_size;
-	for(int i = 0; i < universe_size; i++) {
-		if (empty_dimentions[i] == 1)
-			new_dimention++;
-	}
-
-	return new_dimention;
 }
 
 static void insert_in_list(Point **head, Point *element)
@@ -123,19 +69,22 @@ static void print_points(Point *head)
 {
 	Point *current = head;
 	while (current != NULL) {
-		printf("id: %d (%d, %d) dist: %d ", current->id, current->x, current->y, current->distance_between_pairs);
+		printf("id: %d (%d, %d)", current->id, current->x, current->y);
 		current = current->next;
 	}
 	printf("\n");
 }
 
-static Point* find_points(char **grid, int dimention_x, int dimention_y)
+static Point* find_points(char grid[MAX_GRID][MAX_GRID])
 {
 	Point *head = NULL;
 	Point *new_point = NULL;
 	int counter = 1;
-	for(int i = 0; i < dimention_y; i++) {
-		for(int j = 0; j < dimention_x; j++) {
+	for(int i = 0; i < MAX_GRID; i++) {
+		for(int j = 0; j < MAX_GRID; j++) {
+			if (grid[i][j] == '\0')
+				break;
+
 			if (grid[i][j] == '#') {
 				new_point = malloc(sizeof(Point));
 
@@ -153,44 +102,60 @@ static Point* find_points(char **grid, int dimention_x, int dimention_y)
 	return head;
 }
 
-static int compute_distance(Point *current, Point *other)
+static ll compute_distance(Point *current, Point *other)
 {
-	int a = abs(current->x - other->x);
-	int b = abs(current->y - other->y);
+	ll a = abs(current->x - other->x);
+	ll b = abs(current->y - other->y);
 
 	return a + b;
 }
 
-static void calculate_distances(Point *head)
+static int compute_offset(Point *a, Point *b, int *row_empty, int *col_empty)
 {
+	int offset = 0;
+	int min_y = MIN(a->y, b->y);
+	int max_y = MAX(a->y, b->y);
+
+	int min_x = MIN(a->x, b->x);
+	int max_x = MAX(a->x, b->x);
+
+	for(int i = min_x+1; i < max_x; i++) {
+		if (col_empty[i] == 1) {
+			offset += INCREASE_BY;
+		}
+	}
+
+	for(int i = min_y+1; i < max_y; i++) {
+		if (row_empty[i] == 1) {
+			offset += INCREASE_BY;
+		}
+	}
+
+	return offset;
+}
+
+static ll calculate_distances(Point *head, int *row_empty, int *col_empty)
+{
+	ll result = 0;
 	Point *current = head;
 	while(current->next != NULL) {
 		Point *other = current->next;
 
 		while(other != NULL) {
-			int distance = compute_distance(current, other);
+			ll distance = compute_distance(current, other);
+			ll expansion = compute_offset(current, other, row_empty, col_empty);
 
-			current->distance_between_pairs += distance;
+			result += distance + expansion;
 
 			other = other->next;
 		}
 
 		current = current->next;
 	}
+
+	return result;
 }
 
-static int part_1_result(Point *head)
-{
-	Point *c = head;
-	int sum_of_distance = 0;
-	while (c != NULL) {
-		sum_of_distance += c->distance_between_pairs;
-
-		c = c->next;
-	}
-
-	return sum_of_distance;
-}
 
 int main(int argc, char **argv)
 {
@@ -207,34 +172,18 @@ int main(int argc, char **argv)
 	}
 
 
-	int col_empty_galaxies[universe_size];
-	int row_empty_galaxies[universe_size];
+	int row_empty[universe_size];
+	int col_empty[universe_size];
 
-	find_expanded_dimentions(grid, universe_size, col_empty_galaxies, row_empty_galaxies);
+	find_expanded_dimentions(grid, row_empty, col_empty,  universe_size);
 
-	int dimention_x = count_new_dimention(col_empty_galaxies, universe_size);
-	int dimention_y = count_new_dimention(row_empty_galaxies, universe_size);
+	Point *head = find_points(grid);
 
-	char **new_grid = expand_grid(
-			grid,
-			universe_size,
-			col_empty_galaxies,
-			row_empty_galaxies,
-			dimention_x,
-			dimention_y
-	);
+	ll result = calculate_distances(head, row_empty, col_empty);
 
-	Point *head = find_points(new_grid, dimention_x, dimention_y);
-
-	calculate_distances(head);
-
-	printf("%d\n", part_1_result(head));
+	printf("%lld\n", result);
 
 	free(line);
-
-	for(int i = 0; i < dimention_y; i++) {
-		free(new_grid[i]);
-	}
 
 	Point *current = head;
 	Point *next = NULL;
@@ -245,8 +194,6 @@ int main(int argc, char **argv)
 
 		current = next;
 	}
-
-	free(new_grid);
 
 	return 0;
 }
