@@ -8,18 +8,16 @@
 
 typedef struct _pattern_set {
 	char line[MAX_V][MAX_H];
+	char invert_line[MAX_H][MAX_V];
 	int  rows;
 	int  columns;
 } Pattern;
 
 static void add_line(Pattern *pattern, char *line, int current_line)
 {
-	size_t line_len = strlen(line);
+	size_t line_len = strlen(line) - 1;
+
 	for(int i = 0; i < line_len; i++) {
-		if (line[i] == '\n') {
-			pattern->line[current_line][i] = '\0';
-			break;
-		}
 		pattern->line[current_line][i] = line[i];
 	}
 
@@ -27,34 +25,55 @@ static void add_line(Pattern *pattern, char *line, int current_line)
 	pattern->columns = line_len;
 }
 
-static int is_perfect(Pattern *pattern, int axis, char direction)
+static void define_invert_line(Pattern *pattern)
 {
-	int backward = axis - 2;
-	int forward = axis + 1;
-
-	if (direction == 'v') {
-		while (backward >= 0 && forward < pattern->rows) {
-			for(int i = 0; i < pattern->columns - 1; i++) {
-				if (pattern->line[backward][i] != pattern->line[forward][i])
-					return 0;
-			}
-
-			backward--;
-			forward++;
+	for(int i = 0; i < pattern->columns; i++) {
+		for(int j = 0; j < pattern->rows; j++) {
+			pattern->invert_line[i][j] = pattern->line[j][i];
 		}
-
-	} else {
-		while (backward >= 0 && forward < pattern->columns - 1) {
-			for(int i = 0; i < pattern->rows; i++) {
-				if (pattern->line[i][backward] != pattern->line[i][forward])
-					return 0;
-			}
-
-			backward--;
-			forward++;
-		}
-
 	}
+}
+
+static int is_perfect(Pattern *pattern, int index, char direction)
+{
+	int backward = index - 2;
+	int forward = index + 1;
+	int limit = pattern->rows;
+
+	if (direction == 'v')
+		limit = pattern->columns;
+
+	char *back_line;
+	char *for_line;
+
+	while (backward >= 0 && forward < limit) {
+		if (direction == 'h') {
+			back_line = pattern->line[backward];
+			for_line = pattern->line[forward];
+
+		} else {
+			back_line = pattern->invert_line[backward];
+			for_line = pattern->invert_line[forward];
+		}
+
+		int len = strlen(back_line);
+
+		for(int i = 0; i < len; i++) {
+			if (back_line[i] != for_line[i])
+				return 0;
+		}
+
+		backward--;
+		forward++;
+	}
+
+	return 1;
+}
+
+static int is_equal(char *line_1, char *line_2)
+{
+	if (strcmp(line_1, line_2) != 0)
+		return 0;
 
 	return 1;
 }
@@ -63,43 +82,30 @@ static int count_perfect_reflection_row(Pattern *pattern)
 {
 	int mirror_row = -1;
 	for(int i = 0; i < pattern->rows - 1; i++) {
-		for(int j = 0; j < pattern->columns; j++) {
-			if (pattern->line[i][j] != pattern->line[i+1][j]) {
-				mirror_row = -1;
-				break;
-			} else {
-				mirror_row = i + 1;
-			}
-		}
+		int next_index = i + 1;
 
-		if (mirror_row > -1 && is_perfect(pattern, mirror_row, 'v') == 1)
-			break;
+		if (is_equal(pattern->line[i], pattern->line[next_index]) == 1) {
+			if (is_perfect(pattern, next_index, 'h') == 1)
+				mirror_row = next_index;
+		}
 	}
 
-	if (mirror_row < -1)
-		return 0;
-
-	return (mirror_row > 0) ? mirror_row : 0;
+	return (mirror_row > -1) ? mirror_row : 0;
 }
 
 static int count_perfect_reflection_column(Pattern *pattern)
 {
 	int mirror_column = -1;
-	for(int i = 0; i < pattern->columns - 1; i++) {
-		for(int j = 0; j < pattern->rows; j++) {
-			if (pattern->line[j][i] != pattern->line[j][i+1]) {
-				mirror_column = -1;
-				break;
-			} else {
-				mirror_column = i + 1;
-			}
-		}
+	for(int i = 0; i < pattern->columns; i++) {
+		int next_index = i + 1;
 
-		if (mirror_column > -1 && is_perfect(pattern, mirror_column, 'h') == 1)
-			break;
+		if (is_equal(pattern->invert_line[i], pattern->invert_line[next_index]) == 1) {
+			if (is_perfect(pattern, next_index, 'v') == 1)
+				mirror_column = next_index;
+		}
 	}
 
-	return (mirror_column > 0) ? mirror_column : 0;
+	return (mirror_column > -1) ? mirror_column : 0;
 }
 
 int main(int argc, char **argv)
@@ -135,6 +141,8 @@ int main(int argc, char **argv)
 	for(int i = 0; i < MAX_SET; i++) {
 		if (set[i] == NULL)
 			break;
+
+		define_invert_line(set[i]);
 
 		int row_reflection = count_perfect_reflection_row(set[i]);
 
