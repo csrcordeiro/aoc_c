@@ -155,6 +155,12 @@ int main(int argc, char **argv)
 	int cycle = 0;
 	for(int i = 0; i < LOOPS; i++) {
 		// Take a picture of the platform every 100 cycles.
+		//
+		// If it turns out to be the same, it means the platform is just repeating
+		// states and we can skip ahead and save computation.
+		// Got the idea from this redditor:
+		// https://www.reddit.com/r/adventofcode/comments/18i0xtn/comment/kdahaw7
+
 		if (i % 100 == 0) {
 			memcpy(platform_picture, platform, sizeof(platform));
 			start = i;
@@ -162,8 +168,6 @@ int main(int argc, char **argv)
 
 		do_cycle(platform, row_index);
 
-		// If it turns out to be the same, it means the platform is just repeating
-		// states and we can skip ahead and save computation.
 		if (memcmp(platform_picture, platform, sizeof(platform)) == 0) {
 			cycle = i - start + 1;
 
